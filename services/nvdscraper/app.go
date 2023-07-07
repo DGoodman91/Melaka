@@ -18,7 +18,7 @@ var kafkaServer, kafkaTopic string
 
 func init() {
 	kafkaServer = readFromENV("KAFKA_BROKER", "localhost:9092")
-	kafkaTopic = readFromENV("KAFKA_TOPIC", "default")
+	kafkaTopic = readFromENV("KAFKA_TOPIC", "nvd-cves")
 
 	fmt.Println("Kafka Broker - ", kafkaServer)
 	fmt.Println("Kafka topic - ", kafkaTopic)
@@ -33,6 +33,8 @@ func newKafkaWriter(kafkaURL, topic string) *kafka.Writer {
 }
 
 func main() {
+
+	time.Sleep(10 * time.Second) // temp hack to wait for kafka to start accepting before we have proper connection/retry handling
 
 	resp, getErr := http.Get("https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2019-1010218")
 	if getErr != nil {
@@ -81,7 +83,7 @@ func main() {
 
 	key := result.Vulnerabilities[0].Cve.ID
 	msg := kafka.Message{
-		Key:   []byte(key),
+		Key:   []byte(kafkaTopic),
 		Value: []byte(value),
 	}
 	writerError := writer.WriteMessages(context.Background(), msg)
