@@ -50,19 +50,8 @@ func main() {
 		log.Fatalf("Failed to parse response body into JSON: %s", unmarshalErr)
 	}
 
-	var writer *kafka.Writer
-
-	// try to connect until we succeed? TODO replace with set num of connection attempts
-	for {
-
-		writer = newKafkaWriter(kafkaServer, kafkaTopic)
-		defer writer.Close()
-
-		if writer != nil {
-			break
-		}
-
-	}
+	writer := newKafkaWriter(kafkaServer, kafkaTopic)
+	defer writer.Close()
 
 	value, marshalErr := json.Marshal(result.Vulnerabilities[0])
 	if marshalErr != nil {
@@ -80,7 +69,6 @@ func main() {
 	} else {
 		fmt.Println("produced", key)
 	}
-	time.Sleep(1 * time.Second)
 
 }
 
