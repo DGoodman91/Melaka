@@ -15,6 +15,8 @@ import (
 )
 
 var kafkaWriter *kafka.Writer
+var httpClient *http.Client
+var nvdAPIKey string
 
 func init() {
 	kafkaServer := readFromENV("KAFKA_BROKER", "localhost:9092")
@@ -23,7 +25,11 @@ func init() {
 	kafkaWriter = newKafkaWriter(kafkaServer, kafkaTopic)
 
 	fmt.Println("Kafka Broker - ", kafkaServer)
-	fmt.Println("Kafka topic - ", kafkaTopic)
+	fmt.Println("Kafka Topic - ", kafkaTopic)
+
+	httpClient = &http.Client{}
+
+	nvdAPIKey = readFromENV("NVD_API_KEY", "")
 }
 
 func newKafkaWriter(kafkaURL, topic string) *kafka.Writer {
@@ -48,10 +54,29 @@ func main() {
 
 	for done := false; !done; done = (startIndex > totalResults) {
 
-		resp, getErr := http.Get("https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex=" + strconv.Itoa(startIndex))
+		// TODO retry handling
+		req, reqErr := http.NewRequest("GET", "https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex="+strconv.Itoa(startIndex), nil)
+		if reqErr != nil {
+			log.Fatalf("HTTP request creation failed: %s", reqErr) // Fatalln prints then exits
+		}
 
+		if nvdAPIKey != "" {
+			req.Header.Add("apiKey", nvdAPIKey)
+		}
+
+		resp, getErr := httpClient.Do(req)
 		if getErr != nil {
 			log.Fatalf("HTTP request failed: %s", getErr) // Fatalln prints then exits
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			respMsg := ""
+			val, ok := resp.Header["Message"]
+			if ok && len(val) > 0 {
+				respMsg = resp.Header["Message"][0]
+			}
+			log.Fatalf("Unexpected response from NVD, response code %s, message %s", strconv.Itoa(resp.StatusCode), respMsg)
 		}
 
 		// pull the response body out and deserialize it into a Response obj
@@ -91,11 +116,14 @@ func main() {
 		totalResults = result.TotalResults
 		startIndex = startIndex + result.ResultsPerPage
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 
 	}
 
 	// TODO how do we persist the fact that initialization is complete?
+
+	// TODO once initialization is complete, need to start periodically checking for updates using the lastModifiedDate parameter
+	// NVD docs suggest doing this no more than once every two hours - could be better served by a serverless function that runs sporadically instead of a long-running one
 
 }
 
