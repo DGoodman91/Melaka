@@ -100,7 +100,8 @@ func handleMsg(msg kafka.Message) error {
 
 func newKafkaReader(kafkaURL, topic string) *kafka.Reader {
 	return kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   []string{kafkaURL},
+		Brokers:   []string{kafkaURL}, // TODO handling for multiple brokers
+		GroupID:   "CVE-Writers",
 		Topic:     topic,
 		Partition: 0,
 		MaxBytes:  10e6,
