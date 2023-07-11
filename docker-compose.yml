@@ -9,6 +9,20 @@ services:
       - NVD_API_KEY=YOUR_NVD_API_KEY # not required, just makes api reqs more reliable
     depends_on:
       - kafka
+    
+  cvewriter:
+    image: melaka/cvewriter
+    environment:
+      - KAFKA_BROKER=kafka:9093
+      - KAFKA_TOPIC=nvd-cves
+      - NVD_API_KEY=YOUR_NVD_API_KEY # not required, just makes api reqs more reliable
+      - MONGO_URL=mongodb://mongodb:27017
+      - MONGO_DB=melakaDB
+      - MONGO_COLLECTION=cves
+      - MONGO_ROOT_USERNAME=dev
+      - MONGO_ROOT_PASSWORD=dev
+    depends_on:
+      - kafka
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -47,3 +61,16 @@ services:
   #tcpdump:
   #  image: nicolaka/netshoot
   #  command: tcpdump -i eth0 -w /tmp/nginx.pcap
+
+  mongodb:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: dev # TODO need wiring in as k8s secrets 
+      MONGO_INITDB_ROOT_PASSWORD: dev
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb_data_container:/data/db
+
+volumes:
+  mongodb_data_container:
