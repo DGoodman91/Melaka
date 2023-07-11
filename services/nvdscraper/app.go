@@ -66,7 +66,7 @@ func main() {
 
 		resp, getErr := httpClient.Do(req)
 		if getErr != nil {
-			log.Fatalf("HTTP request failed: %s", getErr) // Fatalln prints then exits
+			log.Fatalf("HTTP request failed: %s", getErr) // TODO need retries, not built into golang's http.client though https://medium.com/@nitishkr88/http-retries-in-go-e622e51d249f
 		}
 		defer resp.Body.Close()
 
@@ -94,9 +94,18 @@ func main() {
 
 		for i := 0; i < len(result.Vulnerabilities); i++ {
 
-			value, marshalErr := json.Marshal(result.Vulnerabilities[i])
+			cve := result.Vulnerabilities[i].Cve
+
+			cveMsg, cveMsgErr := NewCveMsg(cve, result.Timestamp)
+			if cveMsgErr != nil {
+				log.Printf("Error generating CveMsg instance for data %s, %s", cve.ID, cveMsgErr)
+				continue
+			}
+
+			value, marshalErr := json.Marshal(cveMsg)
 			if marshalErr != nil {
-				log.Fatalf("Failed to serialize CVE data into JSON: %s", marshalErr)
+				log.Printf("Failed to serialize CVE data into JSON: %s", marshalErr)
+				continue
 			}
 
 			key := result.Vulnerabilities[i].Cve.ID
@@ -107,6 +116,7 @@ func main() {
 			writerError := kafkaWriter.WriteMessages(context.Background(), msg)
 			if writerError != nil {
 				fmt.Printf("Failed to enqueue message %s: %s\n", value, writerError)
+				continue
 			} else {
 				fmt.Printf("Enqueued data for CVE %s\n", key)
 			}
