@@ -4,13 +4,16 @@ RUN mkdir /app
 
 RUN apk --no-cache update
 
-ADD . /app
+# copy dependency reqs first, for cache efficiency
+COPY go.mod go.sum /app/
 
 # use application dir as working directory
 WORKDIR /app
 
 # download go dependencies
 RUN go mod download
+
+COPY . /app
 
 # build our app
 RUN go build -o main .
