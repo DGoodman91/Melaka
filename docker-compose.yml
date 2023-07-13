@@ -15,7 +15,6 @@ services:
     environment:
       - KAFKA_BROKER=kafka:9093
       - KAFKA_TOPIC=nvd-cves
-      - NVD_API_KEY=YOUR_NVD_API_KEY # not required, just makes api reqs more reliable
       - MONGO_URL=mongodb://mongodb:27017
       - MONGO_DB=melakaDB
       - MONGO_COLLECTION=cves
@@ -57,10 +56,6 @@ services:
       KAFKA_BROKERCONNECT: "kafka:9093"
     depends_on:
       - kafka
-  
-  #tcpdump:
-  #  image: nicolaka/netshoot
-  #  command: tcpdump -i eth0 -w /tmp/nginx.pcap
 
   mongodb:
     image: mongo:latest
