@@ -83,17 +83,19 @@ type CveData struct {
 	} `json:"references"`
 }
 
+type Vulnerability struct {
+	Cve CveData `json:"cve"`
+}
+
 // the object that wraps the NVD API's responses
 type Response struct {
-	ResultsPerPage  int    `json:"resultsPerPage"`
-	StartIndex      int    `json:"startIndex"`
-	TotalResults    int    `json:"totalResults"`
-	Format          string `json:"format"`
-	Version         string `json:"version"`
-	Timestamp       string `json:"timestamp"`
-	Vulnerabilities []struct {
-		Cve CveData `json:"cve"`
-	} `json:"vulnerabilities"`
+	ResultsPerPage  int             `json:"resultsPerPage"`
+	StartIndex      int             `json:"startIndex"`
+	TotalResults    int             `json:"totalResults"`
+	Format          string          `json:"format"`
+	Version         string          `json:"version"`
+	Timestamp       string          `json:"timestamp"`
+	Vulnerabilities []Vulnerability `json:"vulnerabilities"`
 }
 
 // our own model to produce for Kafka

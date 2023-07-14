@@ -7,8 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
+	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -18,7 +17,11 @@ var (
 	kafkaWriter *kafka.Writer
 	httpClient  *http.Client
 	nvdAPIKey   string
+	wg          sync.WaitGroup
 )
+
+const batchSize = 1000    // Using this as a simple way to work around the VSCode debugger's 1024 limit on goroutines :@
+const maxHTTPRetries = 10 // For NVD HTTP requests
 
 func init() {
 	kafkaServer := readFromENV("KAFKA_BROKER", "localhost:9092")
@@ -53,16 +56,11 @@ func main() {
 	// NVD docs suggest doing this no more than once every two hours - could be better served by a serverless function that runs sporadically instead of a long-running one
 
 	for startIndex <= totalResults {
-		resp, err := sendHTTPRequest("GET", "https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex="+strconv.Itoa(startIndex), nil)
+		resp, err := sendHTTPGetRequest(fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex=%d&resultsPerPage=%d", startIndex, batchSize))
 		if err != nil {
 			log.Fatalf("HTTP request failed: %s", err)
 		}
 		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			respMsg := resp.Header.Get("Message")
-			log.Fatalf("Unexpected response from NVD, response code %d, message: %s", resp.StatusCode, respMsg)
-		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -96,38 +94,33 @@ func main() {
 				Value: []byte(value),
 			}
 
-			if err := kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
-				log.Printf("Failed to enqueue message %s: %s\n", value, err)
-				continue
-			} else {
-				fmt.Printf("Enqueued data for CVE %s\n", key)
-			}
+			// Increment the wait group before starting the goroutine
+			wg.Add(1)
+			go enqueueMessage(msg)
+
 		}
+
+		// Wait for all goroutines to finish
+		wg.Wait()
+
+		log.Printf("Batch with startIndex %d complete", startIndex)
 
 		totalResults = result.TotalResults
 		startIndex += result.ResultsPerPage
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * time.Second) // wait to avoid hitting NVD API limits
 	}
+
 }
 
-// TODO retry handling
-func sendHTTPRequest(method, url string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, err
-	}
+func enqueueMessage(msg kafka.Message) {
 
-	if nvdAPIKey != "" {
-		req.Header.Add("apiKey", nvdAPIKey)
-	}
+	defer wg.Done() // Decrement the WaitGroup when the goroutine completes
 
-	return httpClient.Do(req)
-}
-
-func readFromENV(key, defaultVal string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+	// Write the message to Kafka
+	if err := kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
+		log.Printf("Failed to enqueue message %s: %s\n", msg.Value, err)
+	} else {
+		log.Printf("Enqueued data for %s\n", msg.Key)
 	}
-	return defaultVal
 }
