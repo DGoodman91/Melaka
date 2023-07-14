@@ -56,7 +56,7 @@ func main() {
 	// NVD docs suggest doing this no more than once every two hours - could be better served by a serverless function that runs sporadically instead of a long-running one
 
 	for startIndex <= totalResults {
-		resp, err := sendHTTPGetRequest(fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex=%d&resultsPerPage=%d", startIndex, batchSize))
+		resp, err := sendHTTPGetRequest(fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex=%d&resultsPerPage=%d", startIndex, batchSize), maxHTTPRetries)
 		if err != nil {
 			log.Fatalf("HTTP request failed: %s", err)
 		}

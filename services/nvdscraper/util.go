@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-func sendHTTPGetRequest(url string) (*http.Response, error) {
+func sendHTTPGetRequest(url string, maxRetries int) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
-	for retry := 0; retry < maxHTTPRetries; retry++ {
+	for retry := 0; retry < maxRetries; retry++ {
 		resp, err = sendGetRequest(url)
 		if err == nil && resp.StatusCode == http.StatusOK {
 			return resp, nil
