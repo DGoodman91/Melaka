@@ -18,7 +18,7 @@ services:
     restart: no
     environment:
       - KAFKA_BROKER=kafka:9093
-      - KAFKA_TOPIC=nvd-cves
+      - KAFKA_NVD_TOPIC=nvd-cves
       - MONGO_URL=mongodb://mongodb:27017
       - MONGO_DB=melakaDB
       - MONGO_COLLECTION=cves
@@ -86,6 +86,7 @@ services:
 volumes:
   mongodb_data_container:
     name: mongodb_data
+    external: true
 
 networks:
   melaka:
