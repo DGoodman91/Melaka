@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/segmentio/kafka-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,6 +17,8 @@ import (
 var (
 	kafkaReader  *kafka.Reader
 	dbCollection *mongo.Collection
+	wg           sync.WaitGroup
+	maxWorkers   = 10 // Maximum number of concurrent goroutines
 )
 
 func init() {
@@ -28,7 +31,7 @@ func init() {
 
 	// Connect to MongoDB
 	mongoServer := readFromENV("MONGO_URL", "mongodb://localhost:27017")
-	mongoDatabaseName := readFromENV("MONGO_DB", "melaka")
+	mongoDatabaseName := readFromENV("MONGO_DB", "melakaDB")
 	mongoCollectionName := readFromENV("MONGO_COLLECTION", "cves")
 
 	credentials := options.Credential{
@@ -52,17 +55,34 @@ func init() {
 func main() {
 	defer kafkaReader.Close()
 
+	// Create a channel to limit the number of goroutines
+	workerChan := make(chan struct{}, maxWorkers)
+
 	for {
 		m, err := kafkaReader.ReadMessage(context.Background())
 		if err != nil {
 			continue
 		}
-		//fmt.Printf("Message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
 
-		if err := handleMsg(m); err != nil {
-			fmt.Printf("Failed to handle message: %s", err)
-		}
+		// Acquire a worker from the channel
+		workerChan <- struct{}{}
+
+		// Increment the WaitGroup for each message
+		wg.Add(1)
+
+		// Start a goroutine to handle the Kafka message
+		go func(msg kafka.Message) {
+			defer func() {
+				<-workerChan // Release the worker back to the channel
+				wg.Done()    // Decrement the WaitGroup when the goroutine completes
+			}()
+
+			if err := handleMsg(msg); err != nil {
+				fmt.Printf("Failed to handle message: %s", err)
+			}
+		}(m)
 	}
+
 }
 
 func handleMsg(msg kafka.Message) error {
@@ -78,7 +98,7 @@ func handleMsg(msg kafka.Message) error {
 		return err
 	}
 
-	fmt.Printf("%s", result.InsertedID)
+	fmt.Printf("Inserted record with ID %s", result.InsertedID)
 	return nil
 }
 
