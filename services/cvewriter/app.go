@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -15,19 +16,19 @@ import (
 )
 
 var (
-	kafkaReader  *kafka.Reader
-	dbCollection *mongo.Collection
-	wg           sync.WaitGroup
-	maxWorkers   = 10 // Maximum number of concurrent goroutines
+	kafkaNvdReader *kafka.Reader
+	dbCollection   *mongo.Collection
+	wg             sync.WaitGroup
+	maxWorkers     = 10 // Maximum number of concurrent goroutines
 )
 
 func init() {
-	// Connect to Kafka broker
+	// Connect to Kafka broker and create a reader for each source topic
 	kafkaServer := readFromENV("KAFKA_BROKER", "localhost:9092")
-	kafkaTopic := readFromENV("KAFKA_TOPIC", "nvd-cves")
-	kafkaReader = newKafkaReader(kafkaServer, kafkaTopic)
+	kafkaNvdTopic := readFromENV("KAFKA_NVD_TOPIC", "nvd-cves")
+	kafkaNvdReader = newKafkaReader(kafkaServer, kafkaNvdTopic)
 	fmt.Println("Kafka Broker - ", kafkaServer)
-	fmt.Println("Kafka Topic - ", kafkaTopic)
+	fmt.Println("Kafka Topic - ", kafkaNvdTopic)
 
 	// Connect to MongoDB
 	mongoServer := readFromENV("MONGO_URL", "mongodb://localhost:27017")
@@ -53,13 +54,13 @@ func init() {
 }
 
 func main() {
-	defer kafkaReader.Close()
+	defer kafkaNvdReader.Close()
 
 	// Create a channel to limit the number of goroutines
 	workerChan := make(chan struct{}, maxWorkers)
 
 	for {
-		m, err := kafkaReader.ReadMessage(context.Background())
+		m, err := kafkaNvdReader.ReadMessage(context.Background())
 		if err != nil {
 			continue
 		}
@@ -77,7 +78,7 @@ func main() {
 				wg.Done()    // Decrement the WaitGroup when the goroutine completes
 			}()
 
-			if err := handleMsg(msg); err != nil {
+			if err := handleNvdMsg(msg); err != nil {
 				fmt.Printf("Failed to handle message: %s", err)
 			}
 		}(m)
@@ -85,8 +86,18 @@ func main() {
 
 }
 
-func handleMsg(msg kafka.Message) error {
+func handleNvdMsg(msg kafka.Message) error {
 	fmt.Printf("Read message from broker, key %s, value %s", string(msg.Key), string(msg.Value))
+
+	type Msg struct {
+		Timestamp string `json:"timestamp"`
+		Source    string `json:"source"`
+		CveData   string `json:"cvedata"`
+	}
+	var cveMsg Msg
+	if err := json.Unmarshal(msg.Value, &cveMsg); err != nil {
+		return err
+	}
 
 	var bdoc interface{}
 	if err := bson.UnmarshalExtJSON(msg.Value, false, &bdoc); err != nil {
