@@ -18,7 +18,7 @@ func sendHTTPGetRequest(url string, maxRetries int) (*http.Response, error) {
 			return resp, nil
 		}
 
-		log.Printf("HTTP request to %s failed. Retrying... (retry %d/%d)", url, retry+1, maxHTTPRetries)
+		log.Printf("HTTP request to %s failed. Retrying... (retry %d/%d)", url, retry+1, maxRetries)
 		time.Sleep(5 * time.Second)
 
 	}
