@@ -3,7 +3,7 @@ services:
 
   nvdscraper:
     image: melaka/nvdscraper:latest
-    restart: no
+    restart: "no"
     environment:
       - KAFKA_BROKER=kafka:9093
       - KAFKA_TOPIC=nvd-cves
@@ -15,7 +15,7 @@ services:
     
   cvewriter:
     image: melaka/cvewriter:latest
-    restart: no
+    restart: "no"
     environment:
       - KAFKA_BROKER=kafka:9093
       - KAFKA_NVD_TOPIC=nvd-cves
@@ -29,9 +29,21 @@ services:
     networks:
       - melaka
 
+  cvequerier:
+    image: melaka/cvequerier:latest
+    restart: "yes"
+    environment:
+      - MONGO_URL=mongodb://mongodb:27017
+      - MONGO_DB=melakaDB
+      - MONGO_CVES_COLLECTION=cves
+      - MONGO_METADATA_COLLECTION=meta
+      - MONGO_ROOT_USERNAME=dev
+      - MONGO_ROOT_PASSWORD=dev
+      - GIN_MODE=release # set to debug for dev/testing mode
+
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
-    restart: unless-stopped
+    restart: "unless-stopped"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -42,7 +54,7 @@ services:
   
   kafka:
     image: wurstmeister/kafka:latest
-    restart: unless-stopped
+    restart: "unless-stopped"
     ports:
      - "9092:9092"
     expose:
@@ -60,7 +72,7 @@ services:
 
   kafdrop:
     image: obsidiandynamics/kafdrop:latest
-    restart: unless-stopped
+    restart: "unless-stopped"
     ports:
       - "9000:9000"
     environment:
@@ -72,7 +84,7 @@ services:
 
   mongodb:
     image: mongo:latest
-    restart: unless-stopped
+    restart: "unless-stopped"
     environment:
       MONGO_INITDB_ROOT_USERNAME: dev # TODO need wiring in as k8s secrets 
       MONGO_INITDB_ROOT_PASSWORD: dev
@@ -82,6 +94,10 @@ services:
       - mongodb_data_container:/data/db
     networks:
       - melaka
+
+  tcpdump:
+    image: nicolaka/netshoot
+    command: tcpdump -i eth0 -w /tmp/nginx.pcap
 
 volumes:
   mongodb_data_container:
