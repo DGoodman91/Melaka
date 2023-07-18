@@ -7,24 +7,34 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func buildRouter() *gin.Engine {
+type Server struct {
+	db     DBConnector
+	router *gin.Engine
+}
 
-	router := gin.Default()
-	router.SetTrustedProxies(nil)
+func buildServer(database DBConnector) *Server {
+
+	engine := gin.Default()
+	engine.SetTrustedProxies(nil)
+
+	var s Server = Server{
+		db:     database,
+		router: engine,
+	}
 
 	// map routes
-	router.GET("/cve/:id", getCve)
+	engine.GET("/cve/:id", s.getCve)
 
-	return router
+	return &s
 
 }
 
-func getCve(c *gin.Context) {
+func (s *Server) getCve(c *gin.Context) {
 
 	id := c.Param("id")
 	log.Printf("CVE %s requested", id)
 
-	cve, err := db.GetCveFromID(id)
+	cve, err := s.db.GetCveFromID(id)
 	if err != nil {
 		// TODO need to add some error middleware to our API
 	}

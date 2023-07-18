@@ -2,20 +2,14 @@ package main
 
 import (
 	"log"
-
-	"github.com/gin-gonic/gin"
 )
 
-var (
-	db     DBConnector
-	router *gin.Engine
-)
-
-func init() {
+func main() {
 
 	// Create a DB instance and connect to our database
+	// Note that we're not doing this inside an init function because the init function is executed on test runs
 
-	db = &MongoDB{
+	db := &MongoDB{
 		Configuration: DBConnConfig{
 			Url:           readFromENV("MONGO_URL", "mongodb://localhost:27017"),
 			Username:      readFromENV("MONGO_ROOT_USERNAME", "dev"),
@@ -31,13 +25,9 @@ func init() {
 	}
 
 	// Set up our server with it's routes & middleware
-	router = buildRouter()
-
-}
-
-func main() {
+	server := buildServer(db)
 
 	// Run our server!
-	router.Run(":8080")
+	server.router.Run(":8080")
 
 }

@@ -8,9 +8,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Create a type that implements DBConnector so we can mock our db requests
+type MockDatabase struct{}
+
+func (m *MockDatabase) Connect() error {
+	return nil
+}
+
+func (m *MockDatabase) GetCveFromID(id string) (interface{}, error) {
+	return nil, nil
+}
+
 func TestCveGetHandler(t *testing.T) {
 
-	router := buildRouter()
+	m := &MockDatabase{}
+
+	server := buildServer(m)
 
 	req, err := http.NewRequest("GET", "/cve/CVE-0000-0000", nil)
 	if err != nil {
@@ -18,7 +31,7 @@ func TestCveGetHandler(t *testing.T) {
 	}
 
 	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
+	server.router.ServeHTTP(resp, req)
 
 	assert.Equal(t, http.StatusOK, resp.Code)
 	//assert.JSONEq(t, `{"message": "Hello, World!"}`, resp.Body.String())
