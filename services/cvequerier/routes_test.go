@@ -16,7 +16,7 @@ func (m *MockDatabase) Connect() error {
 }
 
 func (m *MockDatabase) GetCveFromID(id string) (interface{}, error) {
-	return nil, nil
+	return CveMsg{CveData: NvdCveData{ID: id}}, nil
 }
 
 func TestCveGetHandler(t *testing.T) {
@@ -25,7 +25,9 @@ func TestCveGetHandler(t *testing.T) {
 
 	server := buildServer(m)
 
-	req, err := http.NewRequest("GET", "/cve/CVE-0000-0000", nil)
+	id := "CVE-0000-0000"
+
+	req, err := http.NewRequest("GET", "/cve/"+id, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,6 +36,6 @@ func TestCveGetHandler(t *testing.T) {
 	server.router.ServeHTTP(resp, req)
 
 	assert.Equal(t, http.StatusOK, resp.Code)
-	//assert.JSONEq(t, `{"message": "Hello, World!"}`, resp.Body.String())
+	assert.Contains(t, resp.Body.String(), id)
 
 }

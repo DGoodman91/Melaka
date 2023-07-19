@@ -14,7 +14,7 @@ func main() {
 			Url:           readFromENV("MONGO_URL", "mongodb://localhost:27017"),
 			Username:      readFromENV("MONGO_ROOT_USERNAME", "dev"),
 			Password:      readFromENV("MONGO_ROOT_PASSWORD", "dev"),
-			Database:      readFromENV("MONGO_DATABASE", "melaka"),
+			Database:      readFromENV("MONGO_DATABASE", "melakaDB"),
 			CveCollection: readFromENV("MONGO_CVE_COLLECTION", "cves"),
 		},
 	}

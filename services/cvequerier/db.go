@@ -54,15 +54,16 @@ func (m *MongoDB) Connect() error {
 
 func (db *MongoDB) GetCveFromID(id string) (interface{}, error) {
 
-	filter := bson.D{{"id", "CVE-0000-0000"}}
+	filter := bson.D{{"cvedata.id", id}}
 
-	var result interface{}
+	var result CveMsg
 	err := db.CveCollection.FindOne(context.TODO(), filter).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
 
 	return result, nil
+
 }
 
 // An object to hold our connection config for databases
