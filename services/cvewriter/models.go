@@ -98,7 +98,7 @@ type Response struct {
 	Vulnerabilities []Vulnerability `json:"vulnerabilities"`
 }
 
-// our own model to produce for Kafka
+// model of the NVD msg coming from Kafka
 type CveMsg struct {
 	Timestamp string     `json:"timestamp"`
 	Source    string     `json:"source"`

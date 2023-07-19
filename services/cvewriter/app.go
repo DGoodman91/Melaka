@@ -89,12 +89,7 @@ func main() {
 func handleNvdMsg(msg kafka.Message) error {
 	fmt.Printf("Read message from broker, key %s, value %s", string(msg.Key), string(msg.Value))
 
-	type Msg struct {
-		Timestamp string `json:"timestamp"`
-		Source    string `json:"source"`
-		CveData   string `json:"cvedata"`
-	}
-	var cveMsg Msg
+	var cveMsg CveMsg
 	if err := json.Unmarshal(msg.Value, &cveMsg); err != nil {
 		return err
 	}
