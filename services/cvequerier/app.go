@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 )
 
@@ -18,6 +19,7 @@ func main() {
 			CveCollection: readFromENV("MONGO_CVE_COLLECTION", "cves"),
 		},
 	}
+	defer db.Connection.Disconnect(context.Background())
 
 	err := db.Connect()
 	if err != nil {
