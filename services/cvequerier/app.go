@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 )
 
@@ -30,6 +31,8 @@ func main() {
 	server := buildServer(db)
 
 	// Run our server!
-	server.router.Run(":8080")
+	port := readFromENV("LISTEN_PORT", "8080")
+	server.router.Run(fmt.Sprintf(":%s", port))
+	fmt.Printf("Listening on port %s\n", port)
 
 }
