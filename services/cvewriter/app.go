@@ -94,6 +94,10 @@ func handleNvdMsg(msg kafka.Message) error {
 		return err
 	}
 
+	if cveMsg.Cve.ID == "" {
+		return error(fmt.Errorf("CVE ID is empty"))
+	}
+
 	var bdoc interface{}
 	if err := bson.UnmarshalExtJSON(msg.Value, false, &bdoc); err != nil {
 		return err
