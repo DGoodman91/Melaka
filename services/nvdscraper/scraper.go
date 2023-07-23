@@ -6,12 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 )
-
-const batchSize = 1000    // Using this as a simple way to work around the VSCode debugger's 1024 limit on goroutines :@
-const maxHTTPRetries = 10 // For NVD HTTP requests
 
 type ApiScraper interface {
 	FetchAll() error
@@ -20,10 +16,11 @@ type ApiScraper interface {
 }
 
 type NvdApiScraper struct {
-	Handler    CveHandler
-	httpClient *http.Client
-	apiKey     string
-	wg         sync.WaitGroup
+	Handler        CveHandler
+	httpClient     *http.Client
+	apiKey         string
+	batchSize      int
+	maxHTTPRetries int
 }
 
 func (n *NvdApiScraper) FetchAll() error {
@@ -32,7 +29,7 @@ func (n *NvdApiScraper) FetchAll() error {
 	totalResults := 0
 
 	for startIndex <= totalResults {
-		resp, err := n.sendHTTPGetRequest(fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex=%d&resultsPerPage=%d", startIndex, batchSize), maxHTTPRetries)
+		resp, err := n.sendHTTPGetRequest(fmt.Sprintf("https://services.nvd.nist.gov/rest/json/cves/2.0?startIndex=%d&resultsPerPage=%d", startIndex, n.batchSize), n.maxHTTPRetries)
 		if err != nil {
 			log.Fatalf("HTTP request failed: %s", err)
 		}
@@ -50,24 +47,22 @@ func (n *NvdApiScraper) FetchAll() error {
 		}
 
 		// Send each of the CVE data elements to kafka
-		for _, vulnerability := range result.Vulnerabilities {
+		cveMsgs := make([]CveMsg, len(result.Vulnerabilities))
+		for i, vulnerability := range result.Vulnerabilities {
 			cve := vulnerability.Cve
 			cveMsg, err := NewCveMsg(cve, result.Timestamp)
 			if err != nil {
 				log.Printf("Error generating CveMsg instance for data %s: %s", cve.ID, err)
 				continue
 			}
-
-			err = n.Handler.WriteCve(cveMsg, &n.wg)
-			if err != nil {
-				fmt.Printf("Error writing CVE data: %s\n", err)
-				continue
-			}
-
+			cveMsgs[i] = cveMsg
 		}
 
-		// Wait for all goroutines to finish
-		n.wg.Wait()
+		err = n.Handler.WriteCves(cveMsgs)
+		if err != nil {
+			fmt.Printf("Error writing CVE data: %s\n", err)
+			continue
+		}
 
 		log.Printf("Batch with startIndex %d complete", startIndex)
 
@@ -97,9 +92,11 @@ func (n *NvdApiScraper) Close() error {
 
 func NewNvdApiScraper(handler CveHandler, key string) *NvdApiScraper {
 	return &NvdApiScraper{
-		Handler:    handler,
-		httpClient: &http.Client{},
-		apiKey:     key,
+		Handler:        handler,
+		httpClient:     &http.Client{},
+		apiKey:         key,
+		batchSize:      2000,
+		maxHTTPRetries: 10,
 	}
 }
 

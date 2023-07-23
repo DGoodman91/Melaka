@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"sync"
 
 	"github.com/segmentio/kafka-go"
 )
 
 type CveHandler interface {
-	WriteCves(cves []CveMsg, wg *sync.WaitGroup) error
+	WriteCves(cves []CveMsg) error
 	Close() error
 }
 
@@ -18,36 +17,42 @@ type KafkaHandler struct {
 	Writer *kafka.Writer
 }
 
-func (k *KafkaHandler) WriteCve(c CveMsg, wg *sync.WaitGroup) error {
+func (k *KafkaHandler) WriteCves(cves []CveMsg) error {
 
-	value, err := json.Marshal(c)
-	if err != nil {
-		log.Printf("Failed to serialize CVE data into JSON: %s", err)
-		return err
+	l := len(cves)
+	msgs := make([]kafka.Message, l)
+
+	for i, c := range cves {
+		value, err := json.Marshal(c)
+		if err != nil {
+			log.Printf("Failed to serialize CVE data into JSON: %s", err)
+			return err
+		}
+
+		key := c.Cve.ID
+		msg := kafka.Message{
+			Key:   []byte(key),
+			Value: []byte(value),
+		}
+
+		msgs[i] = msg
+
 	}
 
-	key := c.Cve.ID
-	msg := kafka.Message{
-		Key:   []byte(key),
-		Value: []byte(value),
-	}
-
-	// Increment the wait group before starting the goroutine
-	wg.Add(1)
-	go k.enqueueMessage(msg, wg)
+	go k.enqueueMessages(msgs)
 
 	return nil
 }
 
-func (k *KafkaHandler) enqueueMessage(msg kafka.Message, wg *sync.WaitGroup) {
-
-	defer wg.Done() // Decrement the WaitGroup when the goroutine completes
+func (k *KafkaHandler) enqueueMessages(msgs []kafka.Message) {
 
 	// Write the message to Kafka
-	if err := k.Writer.WriteMessages(context.Background(), msg); err != nil {
-		log.Printf("Failed to enqueue message %s: %s\n", msg.Value, err)
+	if err := k.Writer.WriteMessages(context.Background(), msgs...); err != nil {
+		log.Printf("Failed to enqueue messages, error: %s\n", err)
 	} else {
-		log.Printf("Enqueued data for %s\n", msg.Key)
+		for _, msg := range msgs {
+			log.Printf("Enqueued data for %s\n", msg.Key)
+		}
 	}
 
 }
