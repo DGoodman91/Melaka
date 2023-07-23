@@ -105,8 +105,8 @@ type CveMsg struct {
 	Cve       NvdCveData `json:"cvedata"`
 }
 
-func NewCveMsg(cve NvdCveData, timestamp string) (*CveMsg, error) {
-	msg := &CveMsg{
+func NewCveMsg(cve NvdCveData, timestamp string) (CveMsg, error) {
+	msg := CveMsg{
 		Timestamp: timestamp,
 		Source:    "NVD",
 		Cve:       cve,
