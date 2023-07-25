@@ -32,7 +32,7 @@ func main() {
 
 	// Run our server!
 	port := readFromENV("LISTEN_PORT", "8080")
-	server.router.Run(fmt.Sprintf(":%s", port))
+	server.Run(fmt.Sprintf(":%s", port))
 	fmt.Printf("Listening on port %s\n", port)
 
 }

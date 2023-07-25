@@ -5,11 +5,25 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+type Runnable interface {
+	Run(addr string) error
+}
 
 type Server struct {
 	db     DBConnector
 	router *gin.Engine
+}
+
+func (s *Server) Run(addr string) error {
+
+	if err := s.router.Run(addr); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func buildServer(database DBConnector) *Server {
@@ -24,6 +38,7 @@ func buildServer(database DBConnector) *Server {
 
 	// map routes
 	engine.GET("/cve/:id", s.getCve)
+	engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return &s
 
