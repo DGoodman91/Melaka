@@ -1,0 +1,11 @@
+apiVersion: v2
+name: melaka
+description: A Helm chart for Kubernetes
+
+type: application
+
+# version of our Helm chart
+version: 0.1.0
+
+# version of our application
+appVersion: "0.1.0"
