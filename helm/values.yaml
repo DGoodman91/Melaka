@@ -1,3 +1,33 @@
 # Default values for melaka.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+# default values
+
+# values shared by the whole stack
+melaka:
+  namespace: default
+
+go:
+
+  nvdscraper:
+    image:
+      tag: melaka/nvdscraper
+
+  rolloutStrategy:
+    maxSurge: 50%
+    maxUnavailable: 0%
+  
+  hpa:
+    minReplicas: 1
+    maxReplicas: 10
+    behaviourDown:
+      stabilizationWindowSeconds: 300
+      podPolicyValue: 1
+      podPolicyPeriod: 15
+    behaviourUp:
+      stabilizationWindowSeconds: 300
+      podPolicyValue: 1
+      podPolicyPeriod: 15
+    metrics:
+      averageCPUUtilization: 50
+      averageMemoryUtilization: 50

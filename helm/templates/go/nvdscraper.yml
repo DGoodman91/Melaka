@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: melaka-nvdscraper
+  namespace: {{ .Values.melaka.namespace }}
+  labels:
+    app: melaka-nvdscraper
+spec:
+  selector:
+    matchLabels:
+      app: melaka-nvdscraper
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ .Values.go.rolloutStrategy.maxSurge }} 
+      maxUnavailable: {{ .Values.go.rolloutStrategy.maxUnavailable }}
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: melaka-nvdscraper
+        app.kubernetes.io/name: nvd-scraper
+        app.kubernetes.io/component: go-backend
+    spec:
+      containers:
+      - image: {{ .Values.go.nvdscraper.image.tag }}
+        imagePullPolicy: Never # only do this if in "local" or "dev" mode or something - add a switch
+        name: melaka-nvdscraper
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: melaka-nvdscraper
+  namespace: {{ .Values.melaka.namespace }}
+spec:
+  minReplicas: {{ .Values.go.hpa.minReplicas }}
+  maxReplicas: {{ .Values.go.hpa.maxReplicas }}
+  scaleTargetRef: # The target this autoscaler applies to
+    apiVersion: apps/v1
+    kind: Deployment
+    name: melaka-nvdscraper
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.go.hpa.behaviourDown.stabilizationWindowSeconds }} 
+      policies:
+      - type: Pods # TODO replace this with an inserted yml
+        value: {{ .Values.go.hpa.behaviourDown.podPolicyValue }} 
+        periodSeconds: {{ .Values.go.hpa.behaviourDown.podPolicyPeriod }}
+    scaleUp:
+      stabilizationWindowSeconds: {{ .Values.go.hpa.behaviourUp.stabilizationWindowSeconds }} 
+      policies:
+      - type: Pods # TODO replace this with an inserted yml
+        value: {{ .Values.go.hpa.behaviourUp.podPolicyValue }} 
+        periodSeconds: {{ .Values.go.hpa.behaviourUp.podPolicyPeriod }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.go.hpa.metrics.averageCPUUtilization }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.go.hpa.metrics.averageMemoryUtilization }}
