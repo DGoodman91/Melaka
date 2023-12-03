@@ -10,6 +10,7 @@ import (
 
 	"github.com/segmentio/kafka-go"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -87,8 +88,10 @@ func main() {
 }
 
 func handleNvdMsg(msg kafka.Message) error {
-	fmt.Printf("Read message from broker, key %s, value %s", string(msg.Key), string(msg.Value))
+	//fmt.Printf("Read message from broker, key %s, value %s", string(msg.Key), string(msg.Value)) // DEBUG logging
+	//fmt.Printf("Read message from broker for vuln %s\n", string(msg.Key))
 
+	// deserialize the json in the kafka message
 	var cveMsg CveMsg
 	if err := json.Unmarshal(msg.Value, &cveMsg); err != nil {
 		return err
@@ -98,17 +101,26 @@ func handleNvdMsg(msg kafka.Message) error {
 		return error(fmt.Errorf("CVE ID is empty"))
 	}
 
-	var bdoc interface{}
-	if err := bson.UnmarshalExtJSON(msg.Value, false, &bdoc); err != nil {
+	var updateDoc interface{}
+	if err := bson.UnmarshalExtJSON(msg.Value, false, &updateDoc); err != nil {
 		return err
 	}
 
-	result, err := dbCollection.InsertOne(context.TODO(), bdoc)
+	update := bson.D{{Key: "$set", Value: updateDoc}}
+
+	filter := bson.D{{Key: "cvedata.id", Value: cveMsg.Cve.ID}}
+	opts := options.Update().SetUpsert(true)
+	result, err := dbCollection.UpdateOne(context.TODO(), filter, update, opts)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Inserted record with ID %s", result.InsertedID)
+	if result.ModifiedCount > 0 {
+		fmt.Printf("Updated record for CVE %s\n", cveMsg.Cve.ID)
+	} else {
+		fmt.Printf("Inserted record with ID %s\n", result.UpsertedID.(primitive.ObjectID).Hex())
+	}
+
 	return nil
 }
 

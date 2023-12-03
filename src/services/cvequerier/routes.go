@@ -52,6 +52,7 @@ func (s *Server) getCve(c *gin.Context) {
 	cve, err := s.db.GetCveFromID(id)
 	if err != nil {
 		// TODO need to add some error middleware to our API
+		log.Printf("Instantiation of db connection failed: %s", err)
 	}
 	c.IndentedJSON(http.StatusOK, cve)
 

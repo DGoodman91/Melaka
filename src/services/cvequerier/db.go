@@ -54,7 +54,7 @@ func (m *MongoDB) Connect() error {
 
 func (db *MongoDB) GetCveFromID(id string) (interface{}, error) {
 
-	filter := bson.D{{"cvedata.id", id}}
+	filter := bson.D{{Key: "cvedata.id", Value: id}}
 
 	var result CveMsg
 	err := db.CveCollection.FindOne(context.TODO(), filter).Decode(&result)

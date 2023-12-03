@@ -100,7 +100,7 @@ type Response struct {
 
 // our own model to produce for Kafka
 type CveMsg struct {
-	_id       string
+	//_id       string
 	Timestamp string     `json:"timestamp"`
 	Source    string     `json:"source"`
 	CveData   NvdCveData `json:"cvedata"`
