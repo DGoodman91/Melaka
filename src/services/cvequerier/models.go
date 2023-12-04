@@ -114,3 +114,14 @@ func NewCveMsg(cve NvdCveData, timestamp string) (*CveMsg, error) {
 	}
 	return msg, nil
 }
+
+type MetaDoc struct {
+	InitComplete bool `bson:"initComplete" json:"initComplete"`
+}
+
+func InitMetaDoc() (*MetaDoc, error) {
+	meta := &MetaDoc{
+		InitComplete: false,
+	}
+	return meta, nil
+}

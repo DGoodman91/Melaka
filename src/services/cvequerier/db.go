@@ -13,15 +13,17 @@ import (
 type DBConnector interface {
 	Connect() error
 	GetCveFromID(id string) (interface{}, error)
+	GetMetaDoc(createIfMissing bool) (interface{}, error)
 }
 
 // Define our MongoDB type and implement the DBConnector interface on it
 
 type MongoDB struct {
-	Configuration DBConnConfig
-	Connection    *mongo.Client
-	Database      *mongo.Database
-	CveCollection *mongo.Collection
+	Configuration  DBConnConfig
+	Connection     *mongo.Client
+	Database       *mongo.Database
+	CveCollection  *mongo.Collection
+	MetaCollection *mongo.Collection
 }
 
 func (m *MongoDB) Connect() error {
@@ -47,6 +49,10 @@ func (m *MongoDB) Connect() error {
 	// Ready our mongodb collection for access
 	m.Database = m.Connection.Database(m.Configuration.Database)
 	m.CveCollection = m.Database.Collection(m.Configuration.CveCollection)
+	m.MetaCollection = m.Database.Collection(m.Configuration.MetaCollection)
+
+	// If we don't have a metadoc yet (a doc with details & settings) create it
+	m.GetMetaDoc(true)
 
 	return nil
 
@@ -66,12 +72,45 @@ func (db *MongoDB) GetCveFromID(id string) (interface{}, error) {
 
 }
 
+func (db *MongoDB) GetMetaDoc(createIfMissing bool) (interface{}, error) {
+
+	filter := bson.D{{}}
+
+	metaDocCount, err := db.MetaCollection.CountDocuments(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if metaDocCount < 1 {
+		newDoc, newDocErr := InitMetaDoc()
+		if newDocErr != nil {
+			return nil, newDocErr
+		}
+
+		db.InsertMetaDoc(*newDoc)
+	}
+
+	return nil, nil
+}
+
+func (db *MongoDB) InsertMetaDoc(doc MetaDoc) error {
+
+	_, err := db.MetaCollection.InsertOne(context.TODO(), doc)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 // An object to hold our connection config for databases
 
 type DBConnConfig struct {
-	Url           string
-	Username      string
-	Password      string
-	Database      string
-	CveCollection string
+	Url            string
+	Username       string
+	Password       string
+	Database       string
+	CveCollection  string
+	MetaCollection string
 }

@@ -19,6 +19,10 @@ func (m *MockDatabase) GetCveFromID(id string) (interface{}, error) {
 	return CveMsg{CveData: NvdCveData{ID: id}}, nil
 }
 
+func (m *MockDatabase) GetMetaDoc(createIfMissing bool) (interface{}, error) {
+	return nil, nil
+}
+
 func TestCveGetHandler(t *testing.T) {
 
 	m := &MockDatabase{}
